@@ -37,6 +37,10 @@ func handleConn(conn net.Conn) {
 	path := tokens[1]
 	if path == "/" {
 		conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+	} else if strings.Contains(path, "/echo/") {
+		resp := path[6:]
+		length := len(resp)
+		conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, resp)))
 	} else {
 		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 	}
