@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -16,43 +18,53 @@ func main() {
 		os.Exit(1)
 	}
 
+	var dirFlag = flag.String("directory", ".", "directory to serve files from")
+	flag.Parse()
+
 	for {
 		conn, err := l.Accept()
 		if err != nil {
 			fmt.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
 		}
-		go handleConn(conn)
+		go handleConn(conn, *dirFlag)
 	}
 }
 
-func handleConn(conn net.Conn) {
+func handleConn(conn net.Conn, dir string) {
 	defer conn.Close()
 	req := make([]byte, 1000)
 	n, err := conn.Read(req)
 	if err != nil {
 		fmt.Printf("failed to read from connection. Err: %v\n", err)
-		os.Exit(1)
+		return
 	}
 	req = req[:n]
 	lines := strings.Split(string(req), "\r\n")
 	tokens := strings.Split(lines[0], " ")
+	method := tokens[0]
 	path := tokens[1]
 	if path == "/" {
-		conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+		writeHtmlResponseSimple(conn, 200)
 	} else if strings.Contains(path, "/echo/") {
 		resp := path[6:]
-		length := len(resp)
-		conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, resp)))
+		writeHtmlResponseWithPlainBody(conn, 200, resp)
 	} else if strings.Contains(path, "/user-agent") {
 		for _, header := range lines {
 			if strings.Contains(header, "User-Agent: ") {
 				headerValue := header[12:]
-				length := len(headerValue)
-				conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, headerValue)))
+				writeHtmlResponseWithPlainBody(conn, 200, headerValue)
 			}
 		}
+	} else if method == "GET" && strings.Contains(path, "/files/") {
+		filePath := filepath.Join(dir, path[7:])
+		_, err := os.Stat(filePath)
+		if err != nil {
+			writeHtmlResponseSimple(conn, 404)
+			return
+		}
+		writeHtmlResponseWithFile(conn, 200, filePath)
 	} else {
-		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+		writeHtmlResponseSimple(conn, 404)
 	}
 }
