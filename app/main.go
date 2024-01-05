@@ -25,6 +25,7 @@ func main() {
 }
 
 func handleConn(conn net.Conn) {
+	defer conn.Close()
 	req := make([]byte, 1000)
 	n, err := conn.Read(req)
 	if err != nil {
@@ -41,9 +42,15 @@ func handleConn(conn net.Conn) {
 		resp := path[6:]
 		length := len(resp)
 		conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, resp)))
+	} else if strings.Contains(path, "/user-agent") {
+		for _, header := range lines {
+			if strings.Contains(header, "User-Agent: ") {
+				headerValue := header[12:]
+				length := len(headerValue)
+				conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, headerValue)))
+			}
+		}
 	} else {
 		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 	}
-
-	conn.Close()
 }
