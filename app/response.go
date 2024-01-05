@@ -9,7 +9,9 @@ import (
 
 var statusCodeNameMap = map[int]string{
 	200: "OK",
+	201: "Created",
 	404: "Not Found",
+	500: "Internal Server Error",
 }
 
 func writeHtmlResponseSimple(conn net.Conn, statusCode int) {

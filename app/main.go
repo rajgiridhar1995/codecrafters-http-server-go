@@ -56,14 +56,25 @@ func handleConn(conn net.Conn, dir string) {
 				writeHtmlResponseWithPlainBody(conn, 200, headerValue)
 			}
 		}
-	} else if method == "GET" && strings.Contains(path, "/files/") {
-		filePath := filepath.Join(dir, path[7:])
-		_, err := os.Stat(filePath)
-		if err != nil {
-			writeHtmlResponseSimple(conn, 404)
-			return
+	} else if strings.Contains(path, "/files/") {
+		fileName := path[7:]
+		filePath := filepath.Join(dir, fileName)
+		if method == "GET" {
+			_, err := os.Stat(filePath)
+			if err != nil {
+				writeHtmlResponseSimple(conn, 404)
+				return
+			}
+			writeHtmlResponseWithFile(conn, 200, filePath)
+		} else if method == "POST" {
+			file, err := os.Create(filePath)
+			if err != nil {
+				writeHtmlResponseSimple(conn, 500)
+			}
+			defer file.Close()
+			file.WriteString(lines[len(lines)-1])
+			writeHtmlResponseSimple(conn, 201)
 		}
-		writeHtmlResponseWithFile(conn, 200, filePath)
 	} else {
 		writeHtmlResponseSimple(conn, 404)
 	}
